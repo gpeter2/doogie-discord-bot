@@ -1,20 +1,16 @@
-const SlashCommand = require("../../lib/SlashCommand");
+const { ContextMenuCommandBuilder } = require("@discordjs/builders");
 const { MessageEmbed } = require("discord.js");
 const escapeMarkdown = require("discord.js").Util.escapeMarkdown;
 
-const command = new SlashCommand()
-  .setName("play")
-  .setDescription(
-    "Searches and plays the requested song \nSupports: \nYoutube, Spotify, Deezer, Apple Music"
-  )
-  .addStringOption((option) =>
-    option
-      .setName("query")
-      .setDescription("What am I looking for?")
-      .setAutocomplete(true)
-      .setRequired(true)
-  )
-  .setRun(async (client, interaction, options) => {
+module.exports = {
+  command: new ContextMenuCommandBuilder().setName("Play Song").setType(3),
+
+  /**
+   * This function will handle context menu interaction
+   * @param {import("../lib/DiscordMusicBot")} client
+   * @param {import("discord.js").GuildContextMenuInteraction} interaction
+   */
+  run: async (client, interaction, options) => {
     let channel = await client.getChannel(client, interaction);
     if (!channel) {
       return;
@@ -35,11 +31,11 @@ const command = new SlashCommand()
 
     if (channel.type == "GUILD_STAGE_VOICE") {
       setTimeout(() => {
-        if (interaction.guild.members.me.voice.suppress == true) {
+        if (interaction.guild.me.voice.suppress == true) {
           try {
-            interaction.guild.members.me.voice.setSuppressed(false);
+            interaction.guild.me.voice.setSuppressed(false);
           } catch (e) {
-            interaction.guild.members.me.voice.setRequestToSpeak(true);
+            interaction.guild.me.voice.setRequestToSpeak(true);
           }
         }
       }, 2000); // Need this because discord api is buggy asf, and without this the bot will not request to speak on a stage - Darren
@@ -54,7 +50,9 @@ const command = new SlashCommand()
       fetchReply: true,
     });
 
-    let query = options.getString("query", true);
+    const query =
+      interaction.channel.messages.cache.get(interaction.targetId).content ??
+      (await interaction.channel.messages.fetch(interaction.targetId));
     let res = await player.search(query, interaction.user).catch((err) => {
       client.error(err);
       return {
@@ -185,6 +183,5 @@ const command = new SlashCommand()
 
     if (ret) setTimeout(() => ret.delete().catch(this.warn), 20000);
     return ret;
-  });
-
-module.exports = command;
+  },
+};
